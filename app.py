@@ -9,10 +9,17 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from prometheus_client import Counter
 
 app = Flask(__name__)
 app.secret_key = '123456'
 metrics = PrometheusMetrics(app, path='/metrics')
+
+requests_por_endpoint = Counter(
+    'api_requests_por_endpoint_total',
+    'Total de requests por endpoint e método',
+    ['method', 'endpoint']
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,6 +52,17 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+@app.after_request
+def contar_requests(response):
+    endpoint = request.path
+    method = request.method
+
+    requests_por_endpoint.labels(
+        method=method,
+        endpoint=endpoint
+    ).inc()
+
+    return response
 
 @app.route('/')
 def index():
