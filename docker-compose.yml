@@ -45,6 +45,16 @@ services:
       - loki
     restart: unless-stopped
 
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./tempo.yml:/etc/tempo.yml
+    ports:
+      - "3200:3200"   # API
+      - "4317:4317"   # OTLP gRPC
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
