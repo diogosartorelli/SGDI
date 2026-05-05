@@ -3,6 +3,12 @@ import sqlite3
 from datetime import datetime
 from prometheus_flask_exporter import PrometheusMetrics
 import logging
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
 app = Flask(__name__)
 app.secret_key = '123456'
@@ -15,6 +21,24 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+resource = Resource(attributes={
+    "service.name": "flask-api"
+})
+
+trace.set_tracer_provider(TracerProvider(resource=resource))
+
+otlp_exporter = OTLPSpanExporter(
+    endpoint="http://tempo:4317",
+    insecure=True
+)
+
+trace.get_tracer_provider().add_span_processor(
+    BatchSpanProcessor(otlp_exporter)
+)
+
+tracer = trace.get_tracer(__name__)
+
+FlaskInstrumentor().instrument_app(app)
 
 def get_db():
     conn = sqlite3.connect('demandas.db')
@@ -32,28 +56,70 @@ def index():
     return render_template('index.html', demandas=demandas)
 
 
+# @app.route('/nova_demanda', methods=['GET', 'POST'])
+# def nova_demanda():
+#     if request.method == 'POST':
+#         titulo = request.form['titulo']
+#         descricao = request.form['descricao']
+#         solicitante = request.form['solicitante']
+#
+#
+#         conn = sqlite3.connect('demandas.db')
+#         cursor = conn.cursor()
+#
+#         cursor.execute(
+#             f"INSERT INTO demandas (titulo, descricao, solicitante, data_criacao) VALUES ('{titulo}', '{descricao}', '{solicitante}', '{datetime.now()}')")
+#         conn.commit()
+#         conn.close()
+#         logger.info(f"Nova demanda criada por {solicitante}: {titulo}")
+#
+#         flash('Salvo!')
+#         return redirect('/')
+#
+#     return render_template('nova_demanda.html')
 @app.route('/nova_demanda', methods=['GET', 'POST'])
 def nova_demanda():
-    if request.method == 'POST':
-        titulo = request.form['titulo']
-        descricao = request.form['descricao']
-        solicitante = request.form['solicitante']
+    with tracer.start_as_current_span("nova_demanda") as span:
+        span.set_attribute("http.route", "/nova_demanda")
+        span.set_attribute("http.method", request.method)
 
+        if request.method == 'POST':
+            titulo = request.form['titulo']
+            descricao = request.form['descricao']
+            solicitante = request.form['solicitante']
 
-        conn = sqlite3.connect('demandas.db')
-        cursor = conn.cursor()
+            span.set_attribute("demanda.titulo", titulo)
+            span.set_attribute("demanda.solicitante", solicitante)
 
-        cursor.execute(
-            f"INSERT INTO demandas (titulo, descricao, solicitante, data_criacao) VALUES ('{titulo}', '{descricao}', '{solicitante}', '{datetime.now()}')")
-        conn.commit()
-        conn.close()
-        logger.info(f"Nova demanda criada por {solicitante}: {titulo}")
+            try:
+                conn = sqlite3.connect('demandas.db')
+                cursor = conn.cursor()
 
-        flash('Salvo!')
-        return redirect('/')
+                cursor.execute(
+                    """
+                    INSERT INTO demandas 
+                    (titulo, descricao, solicitante, data_criacao) 
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (titulo, descricao, solicitante, datetime.now())
+                )
 
-    return render_template('nova_demanda.html')
+                conn.commit()
+                conn.close()
 
+                span.set_attribute("status", "success")
+                logger.info(f"Nova demanda criada por {solicitante}: {titulo}")
+
+                flash('Salvo!')
+                return redirect('/')
+
+            except Exception as e:
+                span.set_attribute("status", "error")
+                span.record_exception(e)
+                logger.error(f"Erro ao criar demanda: {e}")
+                raise
+
+        return render_template('nova_demanda.html')
 
 @app.route('/editar/<id>', methods=['GET', 'POST'])
 def editar(id):
