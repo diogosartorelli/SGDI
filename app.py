@@ -1,9 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
 from datetime import datetime
+from prometheus_flask_exporter import PrometheusMetrics
+import logging
 
 app = Flask(__name__)
 app.secret_key = '123456'
+metrics = PrometheusMetrics(app, path='/metrics')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s app=flask message=%(message)s'
+)
+
+logger = logging.getLogger(__name__)
 
 
 def get_db():
@@ -14,6 +24,7 @@ def get_db():
 
 @app.route('/')
 def index():
+    logger.info("Acessou a página inicial")
     conn = sqlite3.connect('demandas.db')
     cursor = conn.cursor()
     demandas = cursor.execute('SELECT * FROM demandas').fetchall()
@@ -36,6 +47,7 @@ def nova_demanda():
             f"INSERT INTO demandas (titulo, descricao, solicitante, data_criacao) VALUES ('{titulo}', '{descricao}', '{solicitante}', '{datetime.now()}')")
         conn.commit()
         conn.close()
+        logger.info(f"Nova demanda criada por {solicitante}: {titulo}")
 
         flash('Salvo!')
         return redirect('/')
