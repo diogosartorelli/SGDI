@@ -3,12 +3,26 @@
 {% block content %}
 <h2>Lista de Demandas</h2>
 
+<form method="GET" action="/" style="margin-bottom: 20px;">
+    <input type="text" name="q" placeholder="Buscar por título, descrição ou solicitante" value="{{ termo_busca }}" size="40">
+
+    <select name="prioridade">
+        <option value="">Todas as prioridades</option>
+        {% for p in prioridades %}
+        <option value="{{ p }}" {% if p == prioridade_selecionada %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+    </select>
+
+    <button type="submit">Filtrar</button>
+    <a href="/">Limpar filtros</a>
+</form>
 
 <table border="1" cellpadding="10" cellspacing="0" width="100%">
     <thead>
         <tr bgcolor="#cccccc">
             <th>ID</th>
             <th>Título</th>
+            <th>Prioridade</th>
             <th>Solicitante</th>
             <th>Data</th>
             <th>Ações</th>
@@ -19,6 +33,7 @@
         <tr>
             <td>{{ demanda[0] }}</td>
             <td>{{ demanda[1] }}</td>
+            <td>{{ demanda[5] }}</td>
             <td>{{ demanda[3] }}</td>
             <td>{{ demanda[4] }}</td>
             <td>
@@ -26,8 +41,15 @@
                 |
                 <a href="/editar/{{ demanda[0] }}">Editar</a>
                 |
-                <a href="/deletar/{{ demanda[0] }}" style="color:red;">Deletar</a>
+                <form action="/deletar/{{ demanda[0] }}" method="POST" style="display:inline;"
+                      onsubmit="return confirm('Tem certeza que deseja deletar esta demanda?');">
+                    <button type="submit" style="background:none;border:none;color:red;cursor:pointer;padding:0;">Deletar</button>
+                </form>
             </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6">Nenhuma demanda encontrada.</td>
         </tr>
         {% endfor %}
     </tbody>
