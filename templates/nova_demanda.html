@@ -3,37 +3,43 @@
 {% block content %}
 <h2>Nova Demanda</h2>
 
+<div class="card">
 <form method="POST" action="/nova_demanda">
-    <div>
-        <label>Título:</label><br>
-        <input type="text" name="titulo" size="50" value="{{ titulo or '' }}" required>
+    <div class="form-group">
+        <label>Título:</label>
+        <input type="text" name="titulo" value="{{ titulo or '' }}" required>
     </div>
-    <br>
-    
-    <div>
-        <label>Descrição:</label><br>
-        <textarea name="descricao" rows="5" cols="50" required>{{ descricao or '' }}</textarea>
-    </div>
-    <br>
-    
-    <div>
-        <label>Solicitante:</label><br>
-        <input type="text" name="solicitante" value="{{ solicitante or '' }}" required>
-    </div>
-    <br>
 
-    <div>
-        <label>Prioridade:</label><br>
+    <div class="form-group">
+        <label>Descrição:</label>
+        <textarea name="descricao" rows="5" required>{{ descricao or '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Solicitante:</label>
+        <select name="solicitante_id" required>
+            <option value="" disabled {% if not solicitante_id %}selected{% endif %}>Selecione um usuário</option>
+            {% for usuario in usuarios %}
+            <option value="{{ usuario['id'] }}" {% if solicitante_id and solicitante_id|string == usuario['id']|string %}selected{% endif %}>{{ usuario['nome'] }}</option>
+            {% endfor %}
+        </select>
+        <small><a href="/usuarios">Cadastrar novo usuário</a></small>
+    </div>
+
+    <div class="form-group">
+        <label>Prioridade:</label>
         <select name="prioridade">
             {% for p in prioridades %}
             <option value="{{ p }}" {% if p == 'Média' %}selected{% endif %}>{{ p }}</option>
             {% endfor %}
         </select>
     </div>
-    <br>
-    
-    <button type="submit">Salvar</button>
-    <a href="/"><button type="button">Cancelar</button></a>
+
+    <div class="acoes-rodape">
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a href="/" class="btn btn-secondary">Cancelar</a>
+    </div>
 </form>
+</div>
 
 {% endblock %}

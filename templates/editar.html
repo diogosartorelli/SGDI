@@ -3,44 +3,47 @@
 {% block content %}
 <h2>Editar Demanda</h2>
 
+<div class="card">
+<form method="POST" action="/editar/{{ demanda['id'] }}">
+    <div class="form-group">
+        <label>Título:</label>
+        <input type="text" name="titulo" value="{{ demanda['titulo'] }}" required>
+    </div>
 
-<form method="POST" action="/editar/{{ demanda[0] }}">
-    <div>
-        <label>Título:</label><br>
-        <input type="text" name="titulo" value="{{ demanda[1] }}" size="50" required>
+    <div class="form-group">
+        <label>Descrição:</label>
+        <textarea name="descricao" rows="5" required>{{ demanda['descricao'] }}</textarea>
     </div>
-    <br>
-    
-    <div>
-        <label>Descrição:</label><br>
-        <textarea name="descricao" rows="5" cols="50" required>{{ demanda[2] }}</textarea>
-    </div>
-    <br>
-    
-    <div>
-        <label>Solicitante:</label><br>
-        <input type="text" name="solicitante" value="{{ demanda[3] }}" required>
-    </div>
-    <br>
-    
-    <div>
-        <label>Data de Criação:</label><br>
-        <input type="text" value="{{ demanda[4] }}" disabled>
-    </div>
-    <br>
 
-    <div>
-        <label>Prioridade:</label><br>
+    <div class="form-group">
+        <label>Solicitante:</label>
+        <select name="solicitante_id" required>
+            {% for usuario in usuarios %}
+            <option value="{{ usuario['id'] }}" {% if usuario['id'] == demanda['solicitante_id'] %}selected{% endif %}>{{ usuario['nome'] }}</option>
+            {% endfor %}
+        </select>
+        <small><a href="/usuarios">Cadastrar novo usuário</a></small>
+    </div>
+
+    <div class="form-group">
+        <label>Data de Criação:</label>
+        <input type="text" value="{{ demanda['data_criacao']|data_hora_br }}" disabled>
+    </div>
+
+    <div class="form-group">
+        <label>Prioridade:</label>
         <select name="prioridade">
             {% for p in prioridades %}
-            <option value="{{ p }}" {% if p == demanda[5] %}selected{% endif %}>{{ p }}</option>
+            <option value="{{ p }}" {% if p == demanda['prioridade'] %}selected{% endif %}>{{ p }}</option>
             {% endfor %}
         </select>
     </div>
-    <br>
-    
-    <button type="submit">Atualizar</button>
-    <a href="/"><button type="button">Cancelar</button></a>
+
+    <div class="acoes-rodape">
+        <button type="submit" class="btn btn-primary">Atualizar</button>
+        <a href="/" class="btn btn-secondary">Cancelar</a>
+    </div>
 </form>
+</div>
 
 {% endblock %}

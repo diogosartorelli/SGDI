@@ -293,43 +293,7 @@ tbody tr:hover {
     gap: 10px;
 }
 
-.btn-danger {
-    background-color: #d9364f;
-    color: #fff;
-}
-
-/* ---------- Modal de confirmação ---------- */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-caixa {
-    background-color: #fff;
-    border-radius: 10px;
-    padding: 26px 30px;
-    max-width: 380px;
-    width: 90%;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
-    text-align: center;
-}
-
-.modal-caixa p {
-    margin: 0 0 22px;
-    font-size: 1.05em;
-    color: #222;
-}
-
-.modal-botoes {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-}
+/* ---------- Formulários ---------- */
 .form-group {
     margin-bottom: 16px;
 }

@@ -13,7 +13,8 @@
         <div class="menu">
             <a href="/">Início</a>
             <a href="/nova_demanda">Nova Demanda</a>
-            <form action="/buscar" method="GET" style="display:inline;">
+            <a href="/usuarios">Usuários</a>
+            <form action="/buscar" method="GET">
                 <input type="text" name="q" placeholder="Buscar">
                 <button type="submit">Buscar</button>
             </form>
@@ -32,8 +33,60 @@
         {% block content %}{% endblock %}
     </div>
 
+    <div id="modal-confirmacao" class="modal-overlay" style="display:none;">
+        <div class="modal-caixa">
+            <p id="modal-mensagem">Tem certeza?</p>
+            <div class="modal-botoes">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalConfirmacao()">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="modal-btn-confirmar">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <div class="footer">
         <p>SGDI v1.0 - 2024</p>
     </div>
+
+    <script>
+        var formParaEnviar = null;
+
+        function confirmarExclusao(form, mensagem) {
+            formParaEnviar = form;
+            document.getElementById('modal-mensagem').textContent = mensagem;
+            document.getElementById('modal-confirmacao').style.display = 'flex';
+            return false; // impede o envio automático do form; só envia se confirmar no modal
+        }
+
+        function fecharModalConfirmacao() {
+            formParaEnviar = null;
+            document.getElementById('modal-confirmacao').style.display = 'none';
+        }
+
+        document.getElementById('modal-btn-confirmar').addEventListener('click', function () {
+            if (formParaEnviar) {
+                formParaEnviar.submit();
+            }
+        });
+
+        // Fecha o modal clicando fora da caixa branca.
+        document.getElementById('modal-confirmacao').addEventListener('click', function (evento) {
+            if (evento.target === this) {
+                fecharModalConfirmacao();
+            }
+        });
+        // Esconde automaticamente os avisos (flash messages) depois de alguns segundos.
+        document.addEventListener('DOMContentLoaded', function () {
+            var avisos = document.querySelectorAll('.alert');
+            avisos.forEach(function (aviso) {
+                setTimeout(function () {
+                    aviso.classList.add('alert-esconder');
+                    // Remove do HTML depois da transição de fade-out terminar.
+                    setTimeout(function () {
+                        aviso.remove();
+                    }, 500);
+                }, 3000);
+            });
+        });
+    </script>
 </body>
 </html>

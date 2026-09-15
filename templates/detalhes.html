@@ -1,44 +1,53 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Detalhes da Demanda #{{ demanda[0] }}</h2>
+<h2>Detalhes da Demanda #{{ demanda['id'] }}</h2>
 
-<div style="border:1px solid #ccc; padding:15px; margin-bottom:20px;">
-    <h3>{{ demanda[1] }}</h3>
+<div class="card" style="max-width:700px; margin-bottom:24px;">
+    <h3 style="margin-top:0;">{{ demanda['titulo'] }}</h3>
+
+    {% if demanda['prioridade'] == 'Alta' %}
+    <span class="badge badge-alta">Alta</span>
+    {% elif demanda['prioridade'] == 'Média' %}
+    <span class="badge badge-media">Média</span>
+    {% else %}
+    <span class="badge badge-baixa">Baixa</span>
+    {% endif %}
+
     <p><strong>Descrição:</strong></p>
-    <p>{{ demanda[2] }}</p>
-    
-    <p><strong>Prioridade:</strong> {{ demanda[5] }}</p>
-    <p><strong>Solicitante:</strong> {{ demanda[3] }}</p>
-    <p><strong>Data de Criação:</strong> {{ demanda[4] }}</p>
-    
-    <br>
-    <a href="/editar/{{ demanda[0] }}"><button>Editar</button></a>
-    <a href="/"><button>Voltar</button></a>
+    <p>{{ demanda['descricao'] }}</p>
+
+    <p><strong>Solicitante:</strong> {{ demanda['solicitante_nome'] }}</p>
+    <p><strong>Data de Criação:</strong> {{ demanda['data_criacao']|data_hora_br }}</p>
+
+    <div class="acoes-rodape">
+        <a href="/editar/{{ demanda['id'] }}" class="btn btn-primary">Editar</a>
+        <a href="/" class="btn btn-secondary">Voltar</a>
+    </div>
 </div>
 
 <h3>Comentários</h3>
 
 {% for comentario in comentarios %}
-<div style="background:#f0f0f0; padding:10px; margin:10px 0;">
-    <p><strong>{{ comentario[3] }}</strong> em {{ comentario[4] }}</p>
+<div class="comentario">
+    <p><strong>{{ comentario[3] }}</strong> em {{ comentario[4]|data_hora_br }}</p>
     <p>{{ comentario[2] }}</p>
 </div>
 {% endfor %}
 
-<h4>Adicionar Comentário</h4>
-<form method="POST" action="/adicionar_comentario/{{ demanda[0] }}">
-    <div>
-        <label>Seu nome:</label><br>
-        <input type="text" name="autor" size="30" required>
-    </div>
-    <br>
-    <div>
-        <label>Comentário:</label><br>
-        <textarea name="comentario" rows="4" cols="50" required></textarea>
-    </div>
-    <br>
-    <button type="submit">Enviar Comentário</button>
-</form>
+<div class="card" style="margin-top:16px;">
+    <h4 style="margin-top:0;">Adicionar Comentário</h4>
+    <form method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
+        <div class="form-group">
+            <label>Seu nome:</label>
+            <input type="text" name="autor" required>
+        </div>
+        <div class="form-group">
+            <label>Comentário:</label>
+            <textarea name="comentario" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar Comentário</button>
+    </form>
+</div>
 
 {% endblock %}

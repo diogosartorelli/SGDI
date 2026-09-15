@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Usuários</h2>
+
+<div class="card" style="margin-bottom:24px;">
+<form method="POST" action="/usuarios">
+    <div class="form-group">
+        <label>Nome do novo usuário:</label>
+        <input type="text" name="nome" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Cadastrar</button>
+</form>
+</div>
+
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th>Nº</th>
+                <th>Nome</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for usuario in usuarios %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ usuario['nome'] }}</td>
+                <td class="acoes-icones">
+                    <form action="/usuarios/deletar/{{ usuario['id'] }}" method="POST"
+                          onsubmit="return confirmarExclusao(this, 'Tem certeza que deseja excluir este usuário?');">
+                        <button type="submit" class="icon-btn icon-btn-delete" title="Excluir">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18"/>
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            </svg>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3">Nenhum usuário cadastrado ainda.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="acoes-rodape">
+    <a href="/" class="btn btn-secondary">Voltar</a>
+</div>
+
+{% endblock %}

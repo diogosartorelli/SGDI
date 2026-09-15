@@ -68,7 +68,7 @@
                         </svg>
                     </a>
                     <form action="/deletar/{{ demanda['id'] }}" method="POST" style="display:inline;"
-                          onsubmit="return confirmarExclusao(this, 'Tem certeza que deseja deletar esta demanda?');">
+                          onsubmit="return confirm('Tem certeza que deseja deletar esta demanda?');">
                         <button type="submit" class="icon-btn icon-btn-delete" title="Deletar">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M3 6h18"/>
