@@ -280,6 +280,56 @@ tbody tr:hover {
     background-color: #43a047;
 }
 
+.badge-aberta {
+    background-color: #64748b;
+}
+.badge-andamento {
+    background-color: #8b5cf6;
+}
+.badge-concluida {
+    background-color: #43a047;
+}
+
+/* ---------- Paginação ---------- */
+.paginacao {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.pagina-numero {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 5px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+.pagina-numero:hover {
+    background-color: #f0f0f2;
+    text-decoration: none;
+}
+
+.pagina-atual {
+    background-color: #2b2b2b;
+    color: #fff;
+    border-color: #2b2b2b;
+}
+
+.btn-desabilitado {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* ---------- Legenda / notas ---------- */
 .nota {
     font-size: 0.82em;

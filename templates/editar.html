@@ -26,6 +26,15 @@
     </div>
 
     <div class="form-group">
+        <label>Responsável:</label>
+        <select name="responsavel_id" required>
+            {% for usuario in usuarios %}
+            <option value="{{ usuario['id'] }}" {% if usuario['id'] == demanda['responsavel_id'] %}selected{% endif %}>{{ usuario['nome'] }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-group">
         <label>Data de Criação:</label>
         <input type="text" value="{{ demanda['data_criacao']|data_hora_br }}" disabled>
     </div>
@@ -35,6 +44,15 @@
         <select name="prioridade">
             {% for p in prioridades %}
             <option value="{{ p }}" {% if p == demanda['prioridade'] %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Status:</label>
+        <select name="status">
+            {% for s in status_opcoes %}
+            <option value="{{ s }}" {% if s == demanda['status'] %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
         </select>
     </div>

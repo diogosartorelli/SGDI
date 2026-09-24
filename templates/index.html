@@ -6,7 +6,7 @@
 <form method="GET" action="/" class="filter-bar">
     <div>
         <label>Buscar:</label>
-        <input type="text" name="q" placeholder="Título, descrição ou solicitante" value="{{ termo_busca }}">
+        <input type="text" name="q" placeholder="Título, descrição, solicitante ou responsável" value="{{ termo_busca }}">
     </div>
 
     <div>
@@ -19,18 +19,42 @@
         </select>
     </div>
 
+    <div>
+        <label>Status:</label>
+        <select name="status">
+            <option value="">Todos</option>
+            {% for s in status_opcoes %}
+            <option value="{{ s }}" {% if s == status_selecionado %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label>Responsável:</label>
+        <select name="responsavel_id">
+            <option value="">Todos</option>
+            {% for usuario in usuarios %}
+            <option value="{{ usuario['id'] }}" {% if responsavel_selecionado and responsavel_selecionado|string == usuario['id']|string %}selected{% endif %}>{{ usuario['nome'] }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <button type="submit" class="btn btn-primary">Filtrar</button>
     <a href="/" class="btn btn-secondary">Limpar</a>
 </form>
+
+<p class="nota">{{ total }} demanda{{ 's' if total != 1 else '' }} encontrada{{ 's' if total != 1 else '' }}. Página {{ pagina }} de {{ total_paginas }}.</p>
 
 <div class="table-wrapper">
     <table>
         <thead>
             <tr>
                 <th>Nº</th>
+                <th>Status</th>
                 <th>Prioridade</th>
                 <th>Título</th>
                 <th>Solicitante</th>
+                <th>Responsável</th>
                 <th>Data</th>
                 <th>Ações</th>
             </tr>
@@ -38,7 +62,16 @@
         <tbody>
             {% for demanda in demandas %}
             <tr>
-                <td>{{ loop.index }}</td>
+                <td>{{ (pagina - 1) * pagina_tamanho + loop.index }}</td>
+                <td>
+                    {% if demanda['status'] == 'Aberta' %}
+                    <span class="badge badge-aberta">Aberta</span>
+                    {% elif demanda['status'] == 'Em andamento' %}
+                    <span class="badge badge-andamento">Em andamento</span>
+                    {% else %}
+                    <span class="badge badge-concluida">Concluída</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% if demanda['prioridade'] == 'Alta' %}
                     <span class="badge badge-alta">Alta</span>
@@ -50,6 +83,7 @@
                 </td>
                 <td><a href="/detalhes/{{ demanda['id'] }}">{{ demanda['titulo'] }}</a></td>
                 <td>{{ demanda['solicitante_nome'] }}</td>
+                <td>{{ demanda['responsavel_nome'] }}</td>
                 <td>
                     <div class="data-principal">{{ demanda['data_criacao']|data_br }}</div>
                     <div class="data-hora">{{ demanda['data_criacao']|hora_br }}</div>
@@ -81,14 +115,36 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6">Nenhuma demanda encontrada.</td>
+                <td colspan="8">Nenhuma demanda encontrada.</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="nota">Demandas ordenadas da mais urgente para a menos urgente (Alta &rarr; Média &rarr; Baixa).</p>
+<div class="paginacao">
+    {% if pagina > 1 %}
+    <a href="{{ url_for('index', pagina=pagina-1, **filtros_ativos) }}" class="btn btn-secondary">Anterior</a>
+    {% else %}
+    <span class="btn btn-secondary btn-desabilitado">Anterior</span>
+    {% endif %}
+
+    {% for n in range(1, total_paginas + 1) %}
+        {% if n == pagina %}
+        <span class="pagina-numero pagina-atual">{{ n }}</span>
+        {% else %}
+        <a href="{{ url_for('index', pagina=n, **filtros_ativos) }}" class="pagina-numero">{{ n }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if pagina < total_paginas %}
+    <a href="{{ url_for('index', pagina=pagina+1, **filtros_ativos) }}" class="btn btn-secondary">Próxima</a>
+    {% else %}
+    <span class="btn btn-secondary btn-desabilitado">Próxima</span>
+    {% endif %}
+</div>
+
+<p class="nota">Demandas ordenadas por status (Aberta &rarr; Em andamento &rarr; Concluída) e depois por prioridade (Alta &rarr; Média &rarr; Baixa).</p>
 
 <div class="acoes-rodape">
     <a href="/nova_demanda" class="btn btn-primary">+ Nova Demanda</a>
