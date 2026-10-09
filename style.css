@@ -1,0 +1,344 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: #f7f7f8;
+    color: #222;
+}
+
+a {
+    color: #2563eb;
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+/* ---------- Header ---------- */
+.header {
+    background-color: #2b2b2b;
+    color: #fff;
+    padding: 14px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.4em;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.header .menu {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+.header .menu a {
+    color: #fff;
+    font-size: 0.95em;
+}
+.header .menu a:hover {
+    text-decoration: underline;
+}
+
+.header .menu form {
+    display: flex;
+    gap: 8px;
+}
+
+.header .menu input[type="text"] {
+    padding: 7px 10px;
+    border: none;
+    border-radius: 4px;
+    min-width: 200px;
+}
+
+.header .menu button {
+    padding: 7px 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: #43a047;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+.header .menu button:hover {
+    background-color: #388e3c;
+}
+
+/* ---------- Container / mensagens ---------- */
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 30px;
+}
+
+.alert {
+    max-width: 1100px;
+    margin: 16px auto 0;
+    padding: 10px 16px;
+    background-color: #fff3cd;
+    border: 1px solid #ffe08a;
+    border-radius: 6px;
+    color: #7a5b00;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    opacity: 1;
+}
+
+.alert-esconder {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+h2 {
+    margin-top: 0;
+    font-size: 1.5em;
+    color: #1a1a1a;
+}
+
+/* ---------- Barra de filtro/busca ---------- */
+.filter-bar {
+    background-color: #f0f0f2;
+    border: 1px solid #e2e2e5;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 22px;
+}
+
+.filter-bar label {
+    font-weight: 600;
+    font-size: 0.9em;
+    margin-right: 6px;
+}
+
+.filter-bar input[type="text"],
+.filter-bar select {
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* ---------- Botões ---------- */
+.btn {
+    display: inline-block;
+    padding: 8px 18px;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+.btn:hover {
+    text-decoration: none;
+    opacity: 0.9;
+}
+
+.btn-primary {
+    background-color: #43a047;
+    color: #fff;
+}
+.btn-secondary {
+    background-color: #8a8a8a;
+    color: #fff;
+}
+.btn-link-danger {
+    background: none;
+    border: none;
+    color: #d9364f;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+}
+
+/* ---------- Tabela ---------- */
+.table-wrapper {
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e5e8;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead tr {
+    background-color: #eceef0;
+}
+
+th, td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.92em;
+}
+
+th {
+    font-weight: 700;
+    color: #333;
+}
+
+tbody tr:hover {
+    background-color: #fafafa;
+}
+
+.acoes a {
+    margin-right: 4px;
+}
+
+.acoes-icones {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+}
+.icon-btn:hover {
+    text-decoration: none;
+}
+
+.icon-btn-view {
+    color: #2563eb;
+    background-color: #eaf0ff;
+}
+.icon-btn-view:hover {
+    background-color: #d7e3ff;
+}
+
+.icon-btn-edit {
+    color: #b8860b;
+    background-color: #fff3cd;
+}
+.icon-btn-edit:hover {
+    background-color: #ffe9a8;
+}
+
+.icon-btn-delete {
+    color: #d9364f;
+    background-color: #fdecee;
+}
+.icon-btn-delete:hover {
+    background-color: #fbd7dc;
+}
+
+.data-principal {
+    font-weight: 600;
+    color: #333;
+}
+.data-hora {
+    font-size: 0.8em;
+    color: #999;
+    margin-top: 2px;
+}
+
+/* ---------- Badges de prioridade ---------- */
+.badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 0.8em;
+    font-weight: 700;
+    text-align: center;
+    min-width: 52px;
+}
+
+.badge-alta {
+    background-color: #e0475b;
+}
+.badge-media {
+    background-color: #f2a53b;
+}
+.badge-baixa {
+    background-color: #43a047;
+}
+
+/* ---------- Legenda / notas ---------- */
+.nota {
+    font-size: 0.82em;
+    color: #777;
+    margin-top: 10px;
+}
+
+.acoes-rodape {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+/* ---------- Formulários ---------- */
+.form-group {
+    margin-bottom: 16px;
+}
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    max-width: 480px;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.95em;
+    font-family: inherit;
+}
+.form-group small a {
+    font-size: 0.85em;
+}
+
+.card {
+    background-color: #fff;
+    border: 1px solid #e5e5e8;
+    border-radius: 8px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    max-width: 600px;
+}
+
+/* ---------- Comentários ---------- */
+.comentario {
+    background-color: #f5f5f6;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+    font-size: 0.85em;
+}

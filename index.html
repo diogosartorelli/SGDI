@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Lista de Demandas</h2>
+
+<form method="GET" action="/" class="filter-bar">
+    <div>
+        <label>Buscar:</label>
+        <input type="text" name="q" placeholder="Título, descrição ou solicitante" value="{{ termo_busca }}">
+    </div>
+
+    <div>
+        <label>Prioridade:</label>
+        <select name="prioridade">
+            <option value="">Todas</option>
+            {% for p in prioridades %}
+            <option value="{{ p }}" {% if p == prioridade_selecionada %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <a href="/" class="btn btn-secondary">Limpar</a>
+</form>
+
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th>Nº</th>
+                <th>Prioridade</th>
+                <th>Título</th>
+                <th>Solicitante</th>
+                <th>Data</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for demanda in demandas %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    {% if demanda['prioridade'] == 'Alta' %}
+                    <span class="badge badge-alta">Alta</span>
+                    {% elif demanda['prioridade'] == 'Média' %}
+                    <span class="badge badge-media">Média</span>
+                    {% else %}
+                    <span class="badge badge-baixa">Baixa</span>
+                    {% endif %}
+                </td>
+                <td><a href="/detalhes/{{ demanda['id'] }}">{{ demanda['titulo'] }}</a></td>
+                <td>{{ demanda['solicitante_nome'] }}</td>
+                <td>
+                    <div class="data-principal">{{ demanda['data_criacao']|data_br }}</div>
+                    <div class="data-hora">{{ demanda['data_criacao']|hora_br }}</div>
+                </td>
+                <td class="acoes-icones">
+                    <a href="/detalhes/{{ demanda['id'] }}" class="icon-btn icon-btn-view" title="Ver">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </a>
+                    <a href="/editar/{{ demanda['id'] }}" class="icon-btn icon-btn-edit" title="Editar">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                        </svg>
+                    </a>
+                    <form action="/deletar/{{ demanda['id'] }}" method="POST" style="display:inline;"
+                          onsubmit="return confirm('Tem certeza que deseja deletar esta demanda?');">
+                        <button type="submit" class="icon-btn icon-btn-delete" title="Deletar">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18"/>
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            </svg>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6">Nenhuma demanda encontrada.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="nota">Demandas ordenadas da mais urgente para a menos urgente (Alta &rarr; Média &rarr; Baixa).</p>
+
+<div class="acoes-rodape">
+    <a href="/nova_demanda" class="btn btn-primary">+ Nova Demanda</a>
+    <a href="/usuarios" class="btn btn-secondary">Gerenciar Usuários</a>
+</div>
+
+{% endblock %}

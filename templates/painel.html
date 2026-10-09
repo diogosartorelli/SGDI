@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Painel de Demandas</h2>
+
+<form method="GET" action="/painel" id="filtros-painel" class="filter-bar">
+    <div>
+        <label>Visão:</label>
+        <select name="visao">
+            <option value="">Todas as demandas</option>
+            <option value="criticas_atrasadas" {% if filtros.get('visao') == 'criticas_atrasadas' %}selected{% endif %}>Críticas + atrasadas</option>
+        </select>
+    </div>
+    <div>
+        <label>De (criação):</label>
+        <input type="date" name="de" value="{{ filtros.get('de', '') }}">
+    </div>
+    <div>
+        <label>Até (criação):</label>
+        <input type="date" name="ate" value="{{ filtros.get('ate', '') }}">
+    </div>
+    <div>
+        <label>Responsável:</label>
+        <select name="responsavel_id">
+            <option value="">Todos</option>
+            {% for u in usuarios %}
+            <option value="{{ u['id'] }}" {% if filtros.get('responsavel_id') == u['id']|string %}selected{% endif %}>{{ u['nome'] }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>Prioridade:</label>
+        <select name="prioridade">
+            <option value="">Todas</option>
+            {% for p in prioridades %}
+            <option value="{{ p }}" {% if filtros.get('prioridade') == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>Status:</label>
+        <select name="status">
+            <option value="">Todos</option>
+            {% for s in status_opcoes %}
+            <option value="{{ s }}" {% if filtros.get('status') == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <a href="/painel" id="limpar-filtros" class="btn btn-secondary">Limpar</a>
+</form>
+
+<div class="exportar-bar">
+    <span class="exportar-rotulo">Exportar relatório (respeita os filtros acima):</span>
+    <a class="btn btn-primary" data-exportar="pdf" href="{{ url_for('exportar', formato='pdf', **filtros) }}">PDF</a>
+    <a class="btn btn-primary" data-exportar="xlsx" href="{{ url_for('exportar', formato='xlsx', **filtros) }}">Excel</a>
+    <a class="btn btn-secondary" data-exportar="csv" href="{{ url_for('exportar', formato='csv', **filtros) }}">CSV</a>
+</div>
+
+<div id="painel-conteudo">
+    {% include '_painel_conteudo.html' %}
+</div>
+
+<div class="acoes-rodape">
+    <a href="/" class="btn btn-secondary">Ver lista de demandas</a>
+</div>
+
+<script>
+    // Atualização dinâmica: ao mudar qualquer filtro (ou a cada 30 s) busca
+    // só o bloco de dados no servidor e troca na tela, sem recarregar.
+    (function () {
+        var form = document.getElementById('filtros-painel');
+        var alvo = document.getElementById('painel-conteudo');
+
+        function parametros() {
+            var p = new URLSearchParams();
+            new FormData(form).forEach(function (valor, chave) {
+                if (valor) { p.append(chave, valor); }
+            });
+            return p;
+        }
+
+        function atualizar() {
+            var p = parametros();
+            history.replaceState(null, '', '/painel' + (p.toString() ? '?' + p.toString() : ''));
+            var consulta = p.toString() ? '?' + p.toString() : '';
+            document.querySelectorAll('[data-exportar]').forEach(function (a) {
+                a.href = '/exportar/' + a.getAttribute('data-exportar') + consulta;
+            });
+            p.set('parcial', '1');
+            fetch('/painel?' + p.toString())
+                .then(function (resp) { return resp.text(); })
+                .then(function (html) { alvo.innerHTML = html; })
+                .catch(function () { /* mantém o que já está na tela */ });
+        }
+
+        form.addEventListener('change', atualizar);
+        form.addEventListener('submit', function (e) { e.preventDefault(); atualizar(); });
+        document.getElementById('limpar-filtros').addEventListener('click', function (e) {
+            e.preventDefault();
+            form.reset();
+            form.querySelectorAll('input, select').forEach(function (campo) { campo.value = ''; });
+            atualizar();
+        });
+        setInterval(atualizar, 30000);
+    })();
+</script>
+{% endblock %}
