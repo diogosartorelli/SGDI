@@ -18,8 +18,10 @@
     <span class="badge badge-aberta">Aberta</span>
     {% elif demanda['status'] == 'Em andamento' %}
     <span class="badge badge-andamento">Em andamento</span>
-    {% else %}
+    {% elif demanda['status'] == 'Concluída' %}
     <span class="badge badge-concluida">Concluída</span>
+    {% else %}
+    <span class="badge badge-cancelada">Cancelada</span>
     {% endif %}
 
     <p><strong>Descrição:</strong></p>
@@ -28,6 +30,14 @@
     <p><strong>Solicitante:</strong> {{ demanda['solicitante_nome'] }}</p>
     <p><strong>Responsável:</strong> {{ demanda['responsavel_nome'] }}</p>
     <p><strong>Data de Criação:</strong> {{ demanda['data_criacao']|data_hora_br }}</p>
+    <p><strong>Prazo:</strong> {{ demanda['prazo']|prazo_br if demanda['prazo'] else '—' }}
+        {% if demanda['prazo'] and demanda['status'] in ['Aberta', 'Em andamento'] and demanda['prazo'] < hoje %}
+        <span class="badge badge-atrasada">Atrasada</span>
+        {% endif %}
+    </p>
+    {% if demanda['data_conclusao'] %}
+    <p><strong>Concluída em:</strong> {{ demanda['data_conclusao']|data_hora_br }}</p>
+    {% endif %}
 
     <div class="acoes-rodape">
         <a href="/editar/{{ demanda['id'] }}" class="btn btn-primary">Editar</a>

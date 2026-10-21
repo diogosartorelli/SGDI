@@ -3,15 +3,16 @@
 <head>
     <title>SGDI - Sistema de Gestão de Demandas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body { margin: 0; }
-    </style>
 </head>
 <body>
     <div class="header">
-        <h1>SGDI</h1>
+        <div class="marca">
+            <div class="eyebrow">McLovin</div>
+            <h1><span>SGDI</span></h1>
+        </div>
         <div class="menu">
             <a href="/">Início</a>
+            <a href="/painel">Painel</a>
             <a href="/nova_demanda">Nova Demanda</a>
             <a href="/usuarios">Usuários</a>
             <form action="/buscar" method="GET">

@@ -1,0 +1,168 @@
+<p class="nota">
+    Posição de {{ hoje|prazo_br }}, atualizado às {{ atualizado_em }}.
+    {% if filtros %}Mostrando só as demandas que passam em <strong>todos</strong> os filtros escolhidos.{% else %}Sem filtros: todas as demandas.{% endif %}
+</p>
+
+<!-- DESTAQUE DA DIRETORIA: críticas + atrasadas (separado do resto) -->
+<div class="destaque-critico">
+    <div class="destaque-topo">
+        <div>
+            <div class="destaque-selo">Atenção da diretoria</div>
+            <h3 class="destaque-titulo">Críticas atrasadas</h3>
+            <p class="nota">Prioridade Alta, ainda abertas e com prazo vencido.</p>
+        </div>
+        <div class="destaque-numero">{{ criticas_atrasadas|length }}</div>
+    </div>
+    {% if criticas_atrasadas %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr><th>Nº</th><th>Título</th><th>Responsável</th><th>Status</th><th>Prazo</th></tr>
+            </thead>
+            <tbody>
+                {% for c in criticas_atrasadas %}
+                <tr class="linha-atrasada">
+                    <td>{{ c['id'] }}</td>
+                    <td><a href="/detalhes/{{ c['id'] }}">{{ c['titulo'] }}</a></td>
+                    <td>{{ c['responsavel'] }}</td>
+                    <td>
+                        {% if c['status'] == 'Aberta' %}<span class="badge badge-aberta">Aberta</span>
+                        {% else %}<span class="badge badge-andamento">Em andamento</span>{% endif %}
+                    </td>
+                    <td>{{ c['prazo']|prazo_br }} <span class="badge badge-atrasada">Atrasada</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="destaque-vazio">Nenhuma demanda crítica atrasada neste recorte.</p>
+    {% endif %}
+</div>
+
+<!-- Total -->
+<div class="kpi-destaque">
+    <div class="kpi-numero">{{ kpis.total }}</div>
+    <div class="kpi-rotulo">demandas {{ 'no recorte filtrado' if filtros else 'no sistema' }}</div>
+</div>
+
+<!-- Abertas · Concluídas · Atrasadas (+ Canceladas) -->
+<div class="kpi-grid">
+    <div class="kpi-card kpi-abertas">
+        <div class="kpi-titulo">Abertas</div>
+        <div class="kpi-valor">{{ kpis.abertas }}</div>
+        <div class="kpi-pct">{{ kpis.pct_abertas|num_br }}% do total</div>
+        <div class="kpi-sub">{{ kpis.em_andamento }} em andamento</div>
+    </div>
+    <div class="kpi-card kpi-concluidas">
+        <div class="kpi-titulo">Concluídas</div>
+        <div class="kpi-valor">{{ kpis.concluidas }}</div>
+        <div class="kpi-pct">{{ kpis.pct_concluidas|num_br }}% do total</div>
+    </div>
+    <div class="kpi-card kpi-atrasadas">
+        <div class="kpi-titulo">Atrasadas</div>
+        <div class="kpi-valor texto-atrasada">{{ kpis.atrasadas }}</div>
+        <div class="kpi-pct texto-atrasada">{{ kpis.pct_atrasadas|num_br }}% do total</div>
+        <div class="kpi-sub">abertas com prazo vencido</div>
+    </div>
+    <div class="kpi-card kpi-canceladas">
+        <div class="kpi-titulo">Canceladas</div>
+        <div class="kpi-valor">{{ kpis.canceladas }}</div>
+        <div class="kpi-pct">{{ kpis.pct_canceladas|num_br }}% do total</div>
+        <div class="kpi-sub">fora das contas de prazo e tempo</div>
+    </div>
+</div>
+
+<!-- Tempo médio -->
+<div class="kpi-card kpi-tempo">
+    <div class="kpi-titulo">Tempo médio de resolução</div>
+    {% if tempo_ponderado is not none %}
+    <div class="kpi-valor">{{ tempo_ponderado|num_br }} <span class="kpi-unidade">dias (média ponderada)</span></div>
+    <div class="kpi-sub">
+        Média simples: {{ tempo_simples|num_br }} dias · base: {{ tempo_base }} concluída{{ 's' if tempo_base != 1 else '' }}.
+        Demandas críticas (prioridade Alta) pesam {{ peso_critica }}x. Canceladas ficam de fora.
+    </div>
+    {% else %}
+    <div class="kpi-valor">—</div>
+    <div class="kpi-sub">Nenhuma demanda concluída com data de conclusão neste recorte.</div>
+    {% endif %}
+</div>
+
+<!-- Gráficos -->
+<h3 class="painel-secao">Gráficos</h3>
+<div class="graficos-grid">
+    <div class="card grafico-card">
+        <h4>Por status</h4>
+        {% for item in por_status %}
+        <div class="barra-linha">
+            <div class="barra-rotulo">{{ item.nome }}</div>
+            <div class="carga-barra"><div class="barra-preench barra-status-{{ loop.index }}" style="width: {{ (item.qtd * 100 / maior_status) if maior_status else 0 }}%;"></div></div>
+            <div class="carga-qtd">{{ item.qtd }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card grafico-card">
+        <h4>Por prioridade</h4>
+        {% for item in por_prioridade %}
+        <div class="barra-linha">
+            <div class="barra-rotulo">{{ item.nome }}</div>
+            <div class="carga-barra"><div class="barra-preench barra-prio-{{ loop.index }}" style="width: {{ (item.qtd * 100 / maior_prioridade) if maior_prioridade else 0 }}%;"></div></div>
+            <div class="carga-qtd">{{ item.qtd }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card grafico-card grafico-largo">
+    <h4>Evolução no tempo <span class="legenda"><i class="ponto ponto-criadas"></i> Criadas <i class="ponto ponto-concluidas"></i> Concluídas</span></h4>
+    {% if grafico_tempo %}
+    {{ grafico_tempo }}
+    {% else %}
+    <p class="nota">Sem demandas neste recorte.</p>
+    {% endif %}
+</div>
+
+<!-- Críticas -->
+<h3 class="painel-secao">Demandas críticas <span class="badge badge-alta">{{ criticas|length }}</span></h3>
+<p class="nota">Prioridade Alta ainda aberta. Atrasadas em vermelho.</p>
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr><th>Nº</th><th>Título</th><th>Responsável</th><th>Status</th><th>Prazo</th></tr>
+        </thead>
+        <tbody>
+            {% for c in criticas %}
+            {% set atrasada = c['prazo'] and c['prazo'] < hoje %}
+            <tr class="{{ 'linha-atrasada' if atrasada }}">
+                <td>{{ c['id'] }}</td>
+                <td><a href="/detalhes/{{ c['id'] }}">{{ c['titulo'] }}</a></td>
+                <td>{{ c['responsavel_nome'] }}</td>
+                <td>
+                    {% if c['status'] == 'Aberta' %}<span class="badge badge-aberta">Aberta</span>
+                    {% else %}<span class="badge badge-andamento">Em andamento</span>{% endif %}
+                </td>
+                <td>
+                    {% if c['prazo'] %}{{ c['prazo']|prazo_br }}{% if atrasada %} <span class="badge badge-atrasada">Atrasada</span>{% endif %}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">Nenhuma demanda crítica em aberto neste recorte.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Por responsável -->
+<h3 class="painel-secao">Por responsável</h3>
+<p class="nota">Quantas demandas em aberto cada pessoa tem.</p>
+<div class="card carga-card">
+    {% for p in por_responsavel %}
+    <div class="carga-linha">
+        <a href="{{ url_for('index', responsavel_id=p['id']) }}" class="carga-nome">{{ p['nome'] }}</a>
+        <div class="carga-barra"><div class="carga-preench" style="width: {{ (p['qtd'] * 100 / maior_carga) if maior_carga else 0 }}%;"></div></div>
+        <div class="carga-qtd">{{ p['qtd'] }}</div>
+    </div>
+    {% else %}
+    <p>Nenhum usuário cadastrado.</p>
+    {% endfor %}
+</div>

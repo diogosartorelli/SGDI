@@ -10,6 +10,16 @@
     </div>
 
     <div>
+        <label>De (criação):</label>
+        <input type="date" name="de" value="{{ filtros_ativos.get('de', '') }}">
+    </div>
+
+    <div>
+        <label>Até (criação):</label>
+        <input type="date" name="ate" value="{{ filtros_ativos.get('ate', '') }}">
+    </div>
+
+    <div>
         <label>Prioridade:</label>
         <select name="prioridade">
             <option value="">Todas</option>
@@ -39,6 +49,14 @@
         </select>
     </div>
 
+    <div>
+        <label>Visão:</label>
+        <select name="visao">
+            <option value="">Todas as demandas</option>
+            <option value="criticas_atrasadas" {% if filtros_ativos.get('visao') == 'criticas_atrasadas' %}selected{% endif %}>Críticas + atrasadas</option>
+        </select>
+    </div>
+
     <button type="submit" class="btn btn-primary">Filtrar</button>
     <a href="/" class="btn btn-secondary">Limpar</a>
 </form>
@@ -56,20 +74,24 @@
                 <th>Solicitante</th>
                 <th>Responsável</th>
                 <th>Data</th>
+                <th>Prazo</th>
                 <th>Ações</th>
             </tr>
         </thead>
         <tbody>
             {% for demanda in demandas %}
-            <tr>
+            {% set atrasada = demanda['status'] in ['Aberta', 'Em andamento'] and demanda['prazo'] and demanda['prazo'] < hoje %}
+            <tr class="{{ 'linha-atrasada' if atrasada }}">
                 <td>{{ (pagina - 1) * pagina_tamanho + loop.index }}</td>
                 <td>
                     {% if demanda['status'] == 'Aberta' %}
                     <span class="badge badge-aberta">Aberta</span>
                     {% elif demanda['status'] == 'Em andamento' %}
                     <span class="badge badge-andamento">Em andamento</span>
-                    {% else %}
+                    {% elif demanda['status'] == 'Concluída' %}
                     <span class="badge badge-concluida">Concluída</span>
+                    {% else %}
+                    <span class="badge badge-cancelada">Cancelada</span>
                     {% endif %}
                 </td>
                 <td>
@@ -87,6 +109,16 @@
                 <td>
                     <div class="data-principal">{{ demanda['data_criacao']|data_br }}</div>
                     <div class="data-hora">{{ demanda['data_criacao']|hora_br }}</div>
+                </td>
+                <td>
+                    {% if demanda['prazo'] %}
+                    <div class="data-principal">{{ demanda['prazo']|prazo_br }}</div>
+                    {% if atrasada %}
+                    <span class="badge badge-atrasada">Atrasada</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="data-hora">—</span>
+                    {% endif %}
                 </td>
                 <td class="acoes-icones">
                     <a href="/detalhes/{{ demanda['id'] }}" class="icon-btn icon-btn-view" title="Ver">
@@ -115,7 +147,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="8">Nenhuma demanda encontrada.</td>
+                <td colspan="9">Nenhuma demanda encontrada.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -144,9 +176,10 @@
     {% endif %}
 </div>
 
-<p class="nota">Demandas ordenadas por status (Aberta &rarr; Em andamento &rarr; Concluída) e depois por prioridade (Alta &rarr; Média &rarr; Baixa).</p>
+<p class="nota">Demandas ordenadas por status (Aberta &rarr; Em andamento &rarr; Concluída &rarr; Cancelada) e depois por prioridade (Alta &rarr; Média &rarr; Baixa).</p>
 
 <div class="acoes-rodape">
+    <a href="/painel" class="btn btn-secondary">Painel de KPIs</a>
     <a href="/nova_demanda" class="btn btn-primary">+ Nova Demanda</a>
     <a href="/usuarios" class="btn btn-secondary">Gerenciar Usuários</a>
 </div>
