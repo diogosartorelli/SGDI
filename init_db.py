@@ -47,6 +47,11 @@ CREATE TABLE comentarios (
 )
 ''')
 
+# Camada de logs de auditoria (tabela imutável + primeiro registro do histórico).
+import auditoria
+auditoria.criar_estrutura(conn)
+auditoria.registrar(conn, 'sistema.iniciado', 'Banco criado com dados de exemplo.')
+
 cursor.execute('CREATE INDEX idx_demandas_prioridade ON demandas(prioridade)')
 cursor.execute('CREATE INDEX idx_demandas_solicitante ON demandas(solicitante_id)')
 cursor.execute('CREATE INDEX idx_demandas_responsavel ON demandas(responsavel_id)')

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% from "_log_detalhes.html" import detalhes_log %}
+
+{% block content %}
+{% set entidades = {'demanda': 'Demanda', 'usuario': 'Usuário', 'relatorio': 'Relatório', 'sessao': 'Sessão'} %}
+<h2>Auditoria</h2>
+<p class="nota">Registro de quem fez o quê no sistema. Os logs são somente leitura: não podem ser editados nem apagados.</p>
+
+<form method="GET" action="/auditoria" class="filter-bar">
+    <div>
+        <label>De:</label>
+        <input type="date" name="de" value="{{ filtros.get('de', '') }}">
+    </div>
+    <div>
+        <label>Até:</label>
+        <input type="date" name="ate" value="{{ filtros.get('ate', '') }}">
+    </div>
+    <div>
+        <label>Usuário:</label>
+        <select name="usuario">
+            <option value="">Todos</option>
+            {% for nome in usuarios_logs %}
+            <option value="{{ nome }}" {% if filtros.get('usuario') == nome %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>Ação:</label>
+        <select name="acao">
+            <option value="">Todas</option>
+            {% for codigo, info in acoes.items() %}
+            <option value="{{ codigo }}" {% if filtros.get('acao') == codigo %}selected{% endif %}>{{ info[0] }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label>Buscar:</label>
+        <input type="text" name="q" value="{{ filtros.get('q', '') }}" placeholder="Descrição, usuário ou IP">
+    </div>
+    {% if filtros.get('entidade') %}
+    <input type="hidden" name="entidade" value="{{ filtros['entidade'] }}">
+    {% if filtros.get('entidade_id') %}<input type="hidden" name="entidade_id" value="{{ filtros['entidade_id'] }}">{% endif %}
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+    <a href="/auditoria" class="btn btn-secondary">Limpar</a>
+</form>
+
+<div class="exportar-bar">
+    <span class="exportar-rotulo">Exportar logs (respeita os filtros acima):</span>
+    <a class="btn btn-primary" href="{{ url_for('exportar_auditoria', **filtros_url) }}">CSV</a>
+</div>
+
+<p class="nota">{{ total }} registro(s) encontrado(s). Página {{ pagina }} de {{ total_paginas }}.
+    {% if filtros.get('entidade') == 'demanda' and filtros.get('entidade_id') %}
+    Mostrando só o histórico da demanda #{{ filtros['entidade_id'] }}.
+    {% endif %}
+</p>
+
+<div class="table-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th>Data/hora</th>
+                <th>Usuário</th>
+                <th>Ação</th>
+                <th>Registro</th>
+                <th>Descrição</th>
+                <th>IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in logs %}
+            <tr>
+                <td class="nowrap">{{ l.data_hora|data_hora_br }}</td>
+                <td>
+                    {% if l.usuario_id %}{{ l.usuario_nome }}{% else %}<span class="texto-mudo">{{ l.usuario_nome }}</span>{% endif %}
+                </td>
+                <td><span class="badge badge-log-{{ l.acao_tom }}">{{ l.acao_rotulo }}</span></td>
+                <td class="nowrap">
+                    {% if l.entidade == 'demanda' and l.entidade_id %}
+                        {% if l.entidade_id in demandas_existentes %}
+                        <a href="/detalhes/{{ l.entidade_id }}">Demanda #{{ l.entidade_id }}</a>
+                        {% else %}
+                        Demanda #{{ l.entidade_id }} <span class="texto-mudo">(excluída)</span>
+                        {% endif %}
+                    {% elif l.entidade and l.entidade_id %}
+                        {{ entidades.get(l.entidade, l.entidade|capitalize) }} #{{ l.entidade_id }}
+                    {% elif l.entidade %}
+                        {{ entidades.get(l.entidade, l.entidade|capitalize) }}
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    {{ l.descricao }}
+                    {{ detalhes_log(l) }}
+                </td>
+                <td class="nowrap texto-mudo">{{ l.ip or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="texto-mudo">Nenhum registro encontrado com esses filtros.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if total_paginas > 1 %}
+<div class="paginacao">
+    {% if pagina > 1 %}
+    <a class="btn btn-secondary" href="{{ url_for('tela_auditoria', pagina=pagina - 1, **filtros_url) }}">Anterior</a>
+    {% else %}
+    <span class="btn btn-secondary btn-desabilitado">Anterior</span>
+    {% endif %}
+
+    {% for n in range(1, total_paginas + 1) %}
+        {% if n == pagina %}
+        <span class="pagina-numero pagina-atual">{{ n }}</span>
+        {% else %}
+        <a class="pagina-numero" href="{{ url_for('tela_auditoria', pagina=n, **filtros_url) }}">{{ n }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if pagina < total_paginas %}
+    <a class="btn btn-secondary" href="{{ url_for('tela_auditoria', pagina=pagina + 1, **filtros_url) }}">Próxima</a>
+    {% else %}
+    <span class="btn btn-secondary btn-desabilitado">Próxima</span>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="acoes-rodape">
+    <a href="/" class="btn btn-secondary">Voltar para a lista</a>
+</div>
+{% endblock %}

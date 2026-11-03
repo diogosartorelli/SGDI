@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_log_detalhes.html" import detalhes_log %}
 
 {% block content %}
 <h2>Detalhes da Demanda #{{ demanda['id'] }}</h2>
@@ -68,5 +69,22 @@
         <button type="submit" class="btn btn-primary">Enviar Comentário</button>
     </form>
 </div>
+
+<h3 style="margin-top:32px;">Histórico de alterações</h3>
+<p class="nota">Registro de auditoria desta demanda (mais recentes primeiro).
+    <a href="/auditoria?entidade=demanda&entidade_id={{ demanda['id'] }}">Ver na tela de auditoria</a>
+</p>
+{% for l in historico %}
+<div class="comentario">
+    <p>
+        <span class="badge badge-log-{{ l.acao_tom }}">{{ l.acao_rotulo }}</span>
+        <strong>{{ l.usuario_nome }}</strong> em {{ l.data_hora|data_hora_br }}
+    </p>
+    <p>{{ l.descricao }}</p>
+    {{ detalhes_log(l) }}
+</div>
+{% else %}
+<p class="nota">Nenhum evento registrado para esta demanda (ela é anterior à camada de auditoria).</p>
+{% endfor %}
 
 {% endblock %}

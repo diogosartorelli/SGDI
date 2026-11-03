@@ -15,11 +15,29 @@
             <a href="/painel">Painel</a>
             <a href="/nova_demanda">Nova Demanda</a>
             <a href="/usuarios">Usuários</a>
+            <a href="/auditoria">Auditoria</a>
             <form action="/buscar" method="GET">
                 <input type="text" name="q" placeholder="Buscar">
                 <button type="submit">Buscar</button>
             </form>
         </div>
+    </div>
+
+    <div class="barra-usuario">
+        <form action="/identificar" method="POST">
+            <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+            <label for="atuando-como">Atuando como:</label>
+            <select name="usuario_id" id="atuando-como" onchange="this.form.submit()">
+                <option value="">Não identificado</option>
+                {% for u in usuarios_barra %}
+                <option value="{{ u.id }}" {% if usuario_atual and usuario_atual.id == u.id %}selected{% endif %}>{{ u.nome }}</option>
+                {% endfor %}
+            </select>
+            <noscript><button type="submit" class="btn">OK</button></noscript>
+        </form>
+        {% if not usuario_atual %}
+        <span class="aviso-usuario">Ações feitas sem identificação ficam registradas como "Não identificado" (com o IP).</span>
+        {% endif %}
     </div>
 
     {% with messages = get_flashed_messages() %}
@@ -45,7 +63,7 @@
     </div>
 
     <div class="footer">
-        <p>SGDI v1.0 - 2024</p>
+        <p>SGDI v1.0 - 2025</p>
     </div>
 
     <script>

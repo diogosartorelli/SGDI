@@ -449,6 +449,220 @@ class TestVisaoCriticasAtrasadas(Base):
         self.assertEqual(rel['filtros_texto'], 'nenhum filtro (todas as demandas)')
 
 
+# ------------------------------------------------------------------ auditoria
+
+def logs(acao=None):
+    consulta = 'select acao, usuario_nome, entidade, entidade_id, descricao, detalhes, ip from logs_auditoria'
+    if acao:
+        return sql(consulta + ' where acao = ? order by id', (acao,))
+    return sql(consulta + ' order by id')
+
+
+class TestAuditoria(Base):
+    DEMANDA = dict(titulo='Nova', descricao='d', solicitante_id=1, responsavel_id=2,
+                   prioridade='Alta', status='Aberta', prazo='2030-05-01')
+
+    def identificar(self, usuario_id):
+        return self.c.post('/identificar', data={'usuario_id': usuario_id, 'next': '/'})
+
+    # --- estrutura e segurança
+
+    def test_banco_novo_ja_tem_o_primeiro_registro(self):
+        regs = logs()
+        self.assertEqual(len(regs), 1)
+        self.assertEqual(regs[0][0], 'sistema.iniciado')
+
+    def test_logs_sao_imutaveis(self):
+        with self.assertRaises(sqlite3.DatabaseError):
+            sql("update logs_auditoria set descricao = 'adulterado'")
+        with self.assertRaises(sqlite3.DatabaseError):
+            sql('delete from logs_auditoria')
+        self.assertEqual(len(logs()), 1)
+
+    def test_acao_desconhecida_e_recusada(self):
+        con = sgdi.get_db()
+        with self.assertRaises(ValueError):
+            sgdi.auditoria.registrar(con, 'acao.inventada', 'x')
+        con.close()
+
+    # --- quem fez a ação
+
+    def test_acao_sem_identificacao_fica_como_nao_identificado_com_ip(self):
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        acao, usuario, entidade, eid, desc, det, ip = logs('demanda.criada')[0]
+        self.assertEqual(usuario, 'Não identificado')
+        self.assertTrue(ip)
+        self.assertEqual((entidade, eid), ('demanda', sql('select max(id) from demandas')[0][0]))
+
+    def test_acao_identificada_registra_o_usuario(self):
+        self.identificar(2)  # Maria Santos
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        self.assertEqual(logs('demanda.criada')[0][1], 'Maria Santos')
+        self.assertEqual(logs('sessao.identificada')[0][1], 'Maria Santos')
+
+    def test_identificar_usuario_inexistente_e_ignorado(self):
+        self.identificar(999)
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        self.assertEqual(logs('demanda.criada')[0][1], 'Não identificado')
+        self.assertEqual(logs('sessao.identificada'), [])
+
+    def test_encerrar_identificacao(self):
+        self.identificar(1)
+        self.identificar('')
+        self.assertEqual(len(logs('sessao.encerrada')), 1)
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        self.assertEqual(logs('demanda.criada')[0][1], 'Não identificado')
+
+    def test_redirecionamento_so_para_caminho_interno(self):
+        r = self.c.post('/identificar', data={'usuario_id': 1, 'next': 'https://site-malicioso.com'})
+        self.assertNotIn('malicioso', r.headers['Location'])
+        r = self.c.post('/identificar', data={'usuario_id': 1, 'next': '//site-malicioso.com'})
+        self.assertNotIn('malicioso', r.headers['Location'])
+
+    def test_usuario_excluido_deixa_de_valer_como_identificacao(self):
+        self.c.post('/usuarios', data={'nome': 'Temporario'})
+        novo = sql("select id from usuarios where nome = 'Temporario'")[0][0]
+        self.identificar(novo)
+        self.c.post(f'/usuarios/deletar/{novo}')
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        self.assertEqual(logs('demanda.criada')[0][1], 'Não identificado')
+        # o histórico do usuário excluído continua legível nos logs antigos
+        self.assertEqual(logs('sessao.identificada')[0][1], 'Temporario')
+
+    # --- o que foi registrado
+
+    def test_edicao_registra_so_o_que_mudou(self):
+        self.identificar(1)
+        antes = sql('select titulo, descricao, solicitante_id, responsavel_id, prioridade, prazo from demandas where id = 3')[0]
+        self.c.post('/editar/3', data=dict(titulo=antes[0], descricao=antes[1], solicitante_id=antes[2],
+                                           responsavel_id=antes[3], prioridade=antes[4], status='Concluída',
+                                           prazo=antes[5] or ''))
+        acao, usuario, entidade, eid, desc, det, ip = logs('demanda.editada')[0]
+        self.assertEqual((usuario, entidade, eid), ('João Silva', 'demanda', 3))
+        self.assertIn('Status:', desc)
+        self.assertIn('→ Concluída', desc)
+        campos = [m['campo'] for m in __import__('json').loads(det)['alteracoes']]
+        self.assertEqual(campos, ['status'])
+
+    def test_edicao_sem_mudancas_nao_gera_log(self):
+        d = sql('select titulo, descricao, solicitante_id, responsavel_id, prioridade, status, prazo from demandas where id = 3')[0]
+        self.c.post('/editar/3', data=dict(titulo=d[0], descricao=d[1], solicitante_id=d[2],
+                                           responsavel_id=d[3], prioridade=d[4], status=d[5], prazo=d[6] or ''))
+        self.assertEqual(logs('demanda.editada'), [])
+
+    def test_edicao_invalida_nao_gera_log(self):
+        self.c.post('/editar/3', data=dict(titulo='', descricao='', solicitante_id='', responsavel_id='',
+                                           prioridade='Alta', status='Aberta', prazo=''))
+        self.assertEqual(logs('demanda.editada'), [])
+
+    def test_exclusao_guarda_foto_da_demanda_e_comentarios(self):
+        titulo = sql('select titulo from demandas where id = 1')[0][0]
+        qtd = sql('select count(*) from comentarios where demanda_id = 1')[0][0]
+        self.c.post('/deletar/1')
+        acao, usuario, entidade, eid, desc, det, ip = logs('demanda.excluida')[0]
+        self.assertEqual(eid, 1)
+        dados = __import__('json').loads(det)
+        self.assertEqual(dados['titulo'], titulo)
+        self.assertEqual(dados['comentarios_removidos'], qtd)
+
+    def test_comentario_fica_no_historico_da_demanda(self):
+        self.identificar(3)
+        self.c.post('/adicionar_comentario/2', data={'autor': 'Fulano', 'comentario': 'teste de log'})
+        acao, usuario, entidade, eid, desc, det, ip = logs('comentario.adicionado')[0]
+        self.assertEqual((usuario, entidade, eid), ('Pedro Costa', 'demanda', 2))
+        self.assertIn('teste de log', det)
+
+    def test_usuarios_criado_e_excluido(self):
+        self.c.post('/usuarios', data={'nome': 'Fulano'})
+        novo = sql("select id from usuarios where nome = 'Fulano'")[0][0]
+        self.assertEqual(len(logs('usuario.criado')), 1)
+        self.c.post('/usuarios', data={'nome': 'Fulano'})  # duplicado: não gera log
+        self.assertEqual(len(logs('usuario.criado')), 1)
+        self.c.post(f'/usuarios/deletar/{novo}')
+        self.assertEqual(len(logs('usuario.excluido')), 1)
+
+    def test_exportacao_de_relatorio_e_registrada(self):
+        self.c.get('/exportar/csv?prioridade=Alta')
+        acao, usuario, entidade, eid, desc, det, ip = logs('relatorio.exportado')[0]
+        self.assertIn('CSV', desc)
+        self.assertIn('Prioridade Alta', desc)
+
+    def test_falha_na_operacao_nao_deixa_log(self):
+        self.c.post('/nova_demanda', data=dict(self.DEMANDA, titulo=''))
+        self.assertEqual(logs('demanda.criada'), [])
+
+    # --- telas
+
+    def test_tela_de_auditoria_e_filtros(self):
+        self.identificar(1)
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        self.c.post('/adicionar_comentario/2', data={'autor': 'x', 'comentario': 'oi'})
+        html = self.c.get('/auditoria').get_data(as_text=True)
+        self.assertIn('Demanda criada', html)
+        self.assertIn('Comentário adicionado', html)
+        so_acao = self.c.get('/auditoria?acao=demanda.criada').get_data(as_text=True)
+        self.assertIn('Demanda criada', so_acao)
+        self.assertNotIn('badge-log-amarelo', so_acao)  # etiqueta de comentário não aparece na linha
+        so_usuario = self.c.get('/auditoria?usuario=Maria Santos').get_data(as_text=True)
+        self.assertIn('Nenhum registro encontrado', so_usuario)
+        hoje = date.today().isoformat()
+        self.assertIn('Demanda criada', self.c.get(f'/auditoria?de={hoje}&ate={hoje}').get_data(as_text=True))
+        ontem = (date.today() - timedelta(days=1)).isoformat()
+        self.assertIn('Nenhum registro encontrado', self.c.get(f'/auditoria?ate={ontem}').get_data(as_text=True))
+
+    def test_filtro_invalido_e_ignorado(self):
+        self.assertEqual(self.c.get('/auditoria?de=abc&acao=xxx&pagina=zzz').status_code, 200)
+
+    def test_exclusao_aparece_sem_link(self):
+        self.c.post('/deletar/1')
+        html = self.c.get('/auditoria?acao=demanda.excluida').get_data(as_text=True)
+        self.assertIn('Demanda #1', html)
+        self.assertIn('(excluída)', html)
+
+    def test_exportar_logs_csv_respeita_filtros_e_e_auditado(self):
+        self.c.post('/nova_demanda', data=self.DEMANDA)
+        r = self.c.get('/auditoria/exportar?acao=demanda.criada')
+        self.assertEqual(r.status_code, 200)
+        linhas = ler_csv(r.data)
+        i = next(k for k, l in enumerate(linhas) if l and l[0] == 'Nº')
+        dados = [l for l in linhas[i + 1:] if l and l[0].isdigit()]
+        self.assertEqual(len(dados), 1)
+        self.assertEqual(dados[0][3], 'Demanda criada')
+        self.assertEqual(len(logs('auditoria.exportada')), 1)
+
+    def test_historico_aparece_na_pagina_da_demanda(self):
+        self.identificar(1)
+        self.c.post('/adicionar_comentario/2', data={'autor': 'x', 'comentario': 'oi'})
+        html = self.c.get('/detalhes/2').get_data(as_text=True)
+        self.assertIn('Histórico de alterações', html)
+        self.assertIn('Comentário adicionado', html)
+        self.assertIn('João Silva', html)
+
+    def test_barra_atuando_como_em_todas_as_paginas(self):
+        for url in ['/', '/painel', '/nova_demanda', '/usuarios', '/auditoria', '/detalhes/1']:
+            html = self.c.get(url).get_data(as_text=True)
+            self.assertIn('Atuando como', html, url)
+            self.assertIn('/auditoria', html, url)
+
+    def test_paginacao_da_auditoria(self):
+        for i in range(20):
+            self.c.post('/adicionar_comentario/2', data={'autor': 'x', 'comentario': f'c{i}'})
+        p1 = self.c.get('/auditoria').get_data(as_text=True)
+        p2 = self.c.get('/auditoria?pagina=2').get_data(as_text=True)
+        self.assertIn('Página 1 de', p1)
+        self.assertIn('Página 2 de', p2)
+
+    def test_migracao_cria_tabela_em_banco_existente(self):
+        sql('drop trigger logs_auditoria_sem_update')
+        sql('drop trigger logs_auditoria_sem_delete')
+        sql('drop table logs_auditoria')
+        sgdi.migrar_banco()
+        sgdi.migrar_banco()  # idempotente: não duplica o registro inicial
+        self.assertEqual([l[0] for l in logs()], ['sistema.iniciado'])
+        with self.assertRaises(sqlite3.DatabaseError):
+            sql('delete from logs_auditoria')
+
+
 class TestMigracao(unittest.TestCase):
     def test_banco_antigo_migra_sem_perder_dados(self):
         con = sqlite3.connect(BANCO)

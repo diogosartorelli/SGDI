@@ -29,7 +29,7 @@
                         {% if c['status'] == 'Aberta' %}<span class="badge badge-aberta">Aberta</span>
                         {% else %}<span class="badge badge-andamento">Em andamento</span>{% endif %}
                     </td>
-                    <td>{{ c['prazo']|prazo_br }} <span class="badge badge-atrasada">Atrasada</span></td>
+                    <td>{{ c['prazo'].strftime('%d/%m/%Y') }} <span class="badge badge-atrasada">Atrasada</span></td>
                 </tr>
                 {% endfor %}
             </tbody>

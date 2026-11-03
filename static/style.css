@@ -169,7 +169,9 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background-color: rgba(255, 198, 26, .04); }
 
 .acoes a { margin-right: 4px; }
-.acoes-icones { display: flex; align-items: center; gap: 6px; }
+.acoes-icones { white-space: nowrap; }
+.acoes-icones > * { vertical-align: middle; margin-right: 6px; }
+.acoes-icones form { display: inline-block; }
 
 .icon-btn {
     display: inline-flex; align-items: center; justify-content: center;
@@ -389,3 +391,67 @@ tbody tr:hover { background-color: rgba(255, 198, 26, .04); }
 .destaque-numero { font: 800 clamp(70px, 12vw, 120px)/1 var(--impact); color: var(--vermelho); }
 .destaque-vazio { color: var(--verde); margin: 8px 0 0; }
 .destaque-critico .table-wrapper { border-color: var(--borda); background: var(--bg); }
+
+/* ---------- Auditoria: barra "Atuando como", etiquetas e detalhes ---------- */
+.barra-usuario {
+    background-color: var(--card);
+    border-bottom: 1px solid var(--borda);
+    padding: 8px 30px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 14px;
+    font-size: 14px;
+}
+.barra-usuario form { display: flex; align-items: center; gap: 8px; margin: 0; }
+.barra-usuario label { color: var(--mudo); }
+.aviso-usuario { color: var(--mudo); font-size: 13px; }
+
+.nowrap { white-space: nowrap; }
+.texto-mudo { color: var(--mudo); }
+
+.badge-log-verde { color: var(--verde); }
+.badge-log-azul { color: var(--azul); }
+.badge-log-vermelho { color: var(--vermelho); }
+.badge-log-amarelo { color: var(--amarelo); }
+.badge-log-mudo { color: var(--mudo); }
+
+.log-detalhes { margin-top: 6px; font-size: 13px; }
+.log-detalhes summary { cursor: pointer; color: var(--amarelo); }
+.log-lista { margin: 6px 0 0; padding-left: 18px; color: var(--mudo); }
+.log-lista strong { color: var(--texto); }
+.tabela-mini { margin-top: 6px; width: auto; min-width: 320px; }
+.tabela-mini th, .tabela-mini td { padding: 4px 10px; font-size: 13px; border-bottom: 1px solid var(--borda); }
+
+/* ---------- FIX: botões da filter-bar alinhados com os outros campos ---------- */
+.filter-bar-botoes { display: flex; flex-direction: column; gap: 4px; }
+.filter-bar-botoes-linha { display: flex; gap: 8px; align-items: center; }
+
+/* ---------- SUGESTÃO: pills de filtros ativos ---------- */
+.filtros-ativos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.filtros-ativos-label {
+    font-size: 13px;
+    color: var(--mudo);
+    white-space: nowrap;
+}
+.pill-filtro {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: var(--card);
+    border: 1px solid var(--amarelo);
+    border-radius: 99px;
+    font-size: 13px;
+    color: var(--texto);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s;
+}
+.pill-filtro:hover { background: rgba(255, 198, 26, .12); text-decoration: none; }
+.pill-nome { color: var(--mudo); }
+.pill-valor { color: var(--texto); font-weight: 600; }
+.pill-remover { color: var(--amarelo); font-weight: 700; margin-left: 2px; }

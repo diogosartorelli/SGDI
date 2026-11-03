@@ -1,0 +1,29 @@
+{# Mostra os detalhes de um log: tabela "de → para" nas edições, lista nos demais. #}
+{% macro detalhes_log(l) %}
+{% set nomes = {'titulo': 'Título', 'descricao': 'Descrição', 'solicitante': 'Solicitante',
+                'responsavel': 'Responsável', 'prioridade': 'Prioridade', 'status': 'Status', 'prazo': 'Prazo',
+                'comentarios_removidos': 'Comentários removidos', 'comentario_id': 'Nº do comentário',
+                'autor_informado': 'Autor informado', 'texto': 'Texto', 'nome': 'Nome', 'formato': 'Formato',
+                'demandas': 'Demandas', 'filtros': 'Filtros', 'registros': 'Registros'} %}
+{% if l.detalhes %}
+<details class="log-detalhes">
+    <summary>Detalhes</summary>
+    {% if l.detalhes.alteracoes %}
+    <table class="tabela-mini">
+        <thead><tr><th>Campo</th><th>De</th><th>Para</th></tr></thead>
+        <tbody>
+            {% for m in l.detalhes.alteracoes %}
+            <tr><td>{{ m.rotulo }}</td><td>{{ m.de if m.de else '—' }}</td><td>{{ m.para if m.para else '—' }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <ul class="log-lista">
+        {% for chave, valor in l.detalhes.items() %}
+        <li><strong>{{ nomes.get(chave, chave|replace('_', ' ')|capitalize) }}:</strong> {{ valor if valor not in (None, '') else '—' }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</details>
+{% endif %}
+{% endmacro %}

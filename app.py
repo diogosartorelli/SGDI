@@ -1,6 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, abort, session
 import io
+import csv
+import json
 import exportacao
+import auditoria
 import sqlite3
 from datetime import datetime, date, timedelta
 from collections import Counter
@@ -151,6 +154,16 @@ def migrar_banco():
       razoável, editável depois pela tela)."""
     try:
         conn = get_db()
+
+        # Camada de logs de auditoria: cria a tabela em bancos que ainda não
+        # a têm e deixa um primeiro registro marcando o início do histórico.
+        if auditoria.criar_estrutura(conn):
+            auditoria.registrar(
+                conn, 'sistema.iniciado',
+                'Camada de auditoria ativada: a partir daqui as ações ficam registradas.',
+            )
+            conn.commit()
+
         colunas = [col[1] for col in conn.execute('PRAGMA table_info(demandas)').fetchall()]
 
         if 'prioridade' not in colunas:
@@ -230,6 +243,94 @@ def migrar_banco():
     except sqlite3.OperationalError:
         # Banco/tabela ainda não existe: rode "python init_db.py" primeiro.
         pass
+
+
+# ---------------------------------------------------------------- auditoria
+
+def contexto_auditoria(conn):
+    """Quem está agindo e de onde: usuário identificado na sessão (se houver),
+    IP e navegador. O nome vem do banco a cada requisição, então um usuário
+    excluído deixa de valer como identificação."""
+    usuario_id, usuario_nome = None, None
+    sessao_id = session.get('usuario_id')
+    if sessao_id:
+        linha = conn.execute('SELECT id, nome FROM usuarios WHERE id = ?', (sessao_id,)).fetchone()
+        if linha is not None:
+            usuario_id, usuario_nome = linha['id'], linha['nome']
+    return {
+        'usuario_id': usuario_id,
+        'usuario_nome': usuario_nome,
+        'ip': request.remote_addr,
+        'agente': request.headers.get('User-Agent', ''),
+    }
+
+
+def registrar_log(conn, acao, descricao, **kwargs):
+    """Atalho: grava o evento com o contexto da requisição atual (sem commit)."""
+    return auditoria.registrar(conn, acao, descricao, contexto=contexto_auditoria(conn), **kwargs)
+
+
+def dados_demanda(conn, demanda_id):
+    """Foto legível de uma demanda (nomes em vez de ids) para comparar e registrar."""
+    linha = conn.execute('''
+        SELECT demandas.titulo, demandas.descricao, demandas.prioridade, demandas.status,
+               demandas.prazo, solicitantes.nome AS solicitante, responsaveis.nome AS responsavel
+        FROM demandas
+        JOIN usuarios AS solicitantes ON solicitantes.id = demandas.solicitante_id
+        JOIN usuarios AS responsaveis ON responsaveis.id = demandas.responsavel_id
+        WHERE demandas.id = ?
+    ''', (demanda_id,)).fetchone()
+    return dict(linha) if linha is not None else None
+
+
+@app.context_processor
+def contexto_global():
+    """Disponibiliza em todos os templates o usuário identificado e a lista
+    de usuários para a barra "Atuando como"."""
+    atual, lista = None, []
+    try:
+        conn = get_db()
+        lista = [dict(u) for u in conn.execute('SELECT id, nome FROM usuarios ORDER BY nome').fetchall()]
+        conn.close()
+        atual = next((u for u in lista if u['id'] == session.get('usuario_id')), None)
+    except sqlite3.Error:
+        pass
+    return {'usuario_atual': atual, 'usuarios_barra': lista}
+
+
+def _destino_seguro(destino):
+    """Só aceita caminhos internos (evita redirecionar para sites de fora)."""
+    if destino and destino.startswith('/') and not destino.startswith('//') and '\\' not in destino:
+        return destino
+    return url_for('index')
+
+
+@app.route('/identificar', methods=['POST'])
+def identificar():
+    """Define quem está usando o sistema (guardado na sessão do navegador).
+    Não é autenticação com senha: serve para atribuir as ações a uma pessoa."""
+    conn = get_db()
+    escolhido = request.form.get('usuario_id', '').strip()
+
+    if escolhido:
+        usuario = conn.execute('SELECT id, nome FROM usuarios WHERE id = ?', (escolhido,)).fetchone() \
+            if escolhido.isdigit() else None
+        if usuario is None:
+            conn.close()
+            flash('Usuário não encontrado.')
+            return redirect(_destino_seguro(request.form.get('next')))
+        session['usuario_id'] = usuario['id']
+        registrar_log(conn, 'sessao.identificada', f"{usuario['nome']} se identificou no sistema.",
+                      entidade='usuario', entidade_id=usuario['id'])
+        flash(f"Agora você está atuando como {usuario['nome']}.")
+    elif session.get('usuario_id'):
+        registrar_log(conn, 'sessao.encerrada', 'Identificação encerrada.')
+        session.pop('usuario_id', None)
+        flash('Identificação encerrada.')
+
+    conn.commit()
+    conn.close()
+    return redirect(_destino_seguro(request.form.get('next')))
 
 
 def listar_usuarios(conn):
@@ -747,6 +848,19 @@ def exportar(formato):
     relatorio = montar_relatorio(request.args)
     conteudo = exportacao.GERADORES[formato](relatorio)
     mimetype, extensao = exportacao.FORMATOS[formato]
+
+    conn = get_db()
+    registrar_log(
+        conn, 'relatorio.exportado',
+        f"Relatório exportado em {formato.upper()} ({len(relatorio['demandas'])} demanda(s)). "
+        f"Filtros: {relatorio['filtros_texto']}.",
+        entidade='relatorio',
+        detalhes={'formato': formato, 'demandas': len(relatorio['demandas']),
+                  'filtros': relatorio['filtros_texto']},
+    )
+    conn.commit()
+    conn.close()
+
     nome = f"relatorio-demandas-{relatorio['gerado_em'].strftime('%Y%m%d-%H%M%S')}.{extensao}"
     return send_file(io.BytesIO(conteudo), mimetype=mimetype, as_attachment=True, download_name=nome)
 
@@ -762,7 +876,10 @@ def usuarios():
             flash('Informe o nome do usuário.')
         else:
             try:
-                conn.execute('INSERT INTO usuarios (nome) VALUES (?)', (nome,))
+                cursor = conn.execute('INSERT INTO usuarios (nome) VALUES (?)', (nome,))
+                registrar_log(conn, 'usuario.criado', f'Usuário "{nome}" cadastrado.',
+                              entidade='usuario', entidade_id=cursor.lastrowid,
+                              detalhes={'nome': nome})
                 conn.commit()
                 flash('Usuário cadastrado!')
             except sqlite3.IntegrityError:
@@ -776,7 +893,7 @@ def usuarios():
 @app.route('/usuarios/deletar/<int:id>', methods=['POST'])
 def deletar_usuario(id):
     conn = get_db()
-    usuario = conn.execute('SELECT id FROM usuarios WHERE id = ?', (id,)).fetchone()
+    usuario = conn.execute('SELECT id, nome FROM usuarios WHERE id = ?', (id,)).fetchone()
 
     if usuario is None:
         conn.close()
@@ -797,6 +914,8 @@ def deletar_usuario(id):
         return redirect(url_for('usuarios'))
 
     conn.execute('DELETE FROM usuarios WHERE id = ?', (id,))
+    registrar_log(conn, 'usuario.excluido', f'Usuário "{usuario["nome"]}" excluído.',
+                  entidade='usuario', entidade_id=id, detalhes={'nome': usuario['nome']})
     conn.commit()
     conn.close()
     flash('Usuário excluído!')
@@ -864,7 +983,7 @@ def nova_demanda():
                 prazo=prazo,
             ), 400
 
-        conn.execute(
+        cursor = conn.execute(
             'INSERT INTO demandas (titulo, descricao, solicitante_id, responsavel_id, data_criacao, '
             'prioridade, status, prazo, data_conclusao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (
@@ -873,6 +992,10 @@ def nova_demanda():
                 agora_str() if status == 'Concluída' else None,
             ),
         )
+        nova = dados_demanda(conn, cursor.lastrowid)
+        registrar_log(conn, 'demanda.criada',
+                      f'Demanda #{cursor.lastrowid} criada: "{titulo}" (prioridade {prioridade}, status {status}).',
+                      entidade='demanda', entidade_id=cursor.lastrowid, detalhes=nova)
         conn.commit()
         conn.close()
 
@@ -930,6 +1053,7 @@ def editar(id):
         # data_conclusao: marca o momento em que a demanda vira "Concluída",
         # mantém se já estava concluída e limpa se for reaberta.
         atual = conn.execute('SELECT status, data_conclusao FROM demandas WHERE id = ?', (id,)).fetchone()
+        antes = dados_demanda(conn, id)
         if status != 'Concluída':
             data_conclusao = None
         elif atual is not None and atual['status'] == 'Concluída' and atual['data_conclusao']:
@@ -943,6 +1067,14 @@ def editar(id):
             (titulo, descricao, solicitante_id, responsavel_id, prioridade, status,
              prazo or None, data_conclusao, id),
         )
+        depois = dados_demanda(conn, id)
+        if antes is not None and depois is not None:
+            mudancas = auditoria.comparar(antes, depois)
+            if mudancas:
+                registrar_log(conn, 'demanda.editada',
+                              f'Demanda #{id} editada. {auditoria.descrever_mudancas(mudancas)}',
+                              entidade='demanda', entidade_id=id,
+                              detalhes={'alteracoes': mudancas})
         conn.commit()
         conn.close()
         flash('Demanda atualizada!')
@@ -969,8 +1101,15 @@ def deletar(id):
         flash('Demanda não encontrada.')
         return redirect(url_for('index'))
 
+    foto = dados_demanda(conn, id)
+    qtd_comentarios = conn.execute(
+        'SELECT COUNT(*) AS n FROM comentarios WHERE demanda_id = ?', (id,)).fetchone()['n']
     conn.execute('DELETE FROM comentarios WHERE demanda_id = ?', (id,))
     conn.execute('DELETE FROM demandas WHERE id = ?', (id,))
+    registrar_log(conn, 'demanda.excluida',
+                  f'Demanda #{id} excluída: "{foto["titulo"]}" ({qtd_comentarios} comentário(s) removido(s)).',
+                  entidade='demanda', entidade_id=id,
+                  detalhes=dict(foto, comentarios_removidos=qtd_comentarios))
     conn.commit()
     conn.close()
     flash('Deletado!')
@@ -1010,9 +1149,11 @@ def detalhes(id):
         'SELECT * FROM comentarios WHERE demanda_id = ? ORDER BY data',
         (id,),
     ).fetchall()
+    historico = auditoria.historico_da_entidade(conn, 'demanda', id)
     conn.close()
 
-    return render_template('detalhes.html', demanda=demanda, comentarios=comentarios, hoje=hoje_iso())
+    return render_template('detalhes.html', demanda=demanda, comentarios=comentarios,
+                           hoje=hoje_iso(), historico=historico)
 
 
 @app.route('/adicionar_comentario/<int:demanda_id>', methods=['POST'])
@@ -1032,14 +1173,93 @@ def adicionar_comentario(demanda_id):
         flash('Demanda não encontrada.')
         return redirect(url_for('index'))
 
-    conn.execute(
+    cursor = conn.execute(
         'INSERT INTO comentarios (demanda_id, comentario, autor, data) VALUES (?, ?, ?, ?)',
         (demanda_id, comentario, autor, datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
     )
+    registrar_log(conn, 'comentario.adicionado',
+                  f'Comentário adicionado na demanda #{demanda_id} (autor informado: {autor}).',
+                  entidade='demanda', entidade_id=demanda_id,
+                  detalhes={'comentario_id': cursor.lastrowid, 'autor_informado': autor,
+                            'texto': comentario[:500]})
     conn.commit()
     conn.close()
 
     return redirect(url_for('detalhes', id=demanda_id))
+
+
+# ------------------------------------------------------------ tela de auditoria
+
+AUDITORIA_TAMANHO = 15
+
+
+@app.route('/auditoria')
+def tela_auditoria():
+    """Consulta dos logs, com filtros (período, usuário, ação, busca)."""
+    condicoes, params, ativos = auditoria.filtros_da_consulta(request.args)
+    pagina = request.args.get('pagina', '1')
+    pagina = int(pagina) if pagina.isdigit() else 1
+
+    conn = get_db()
+    resultado = auditoria.consultar(conn, condicoes, params, pagina, AUDITORIA_TAMANHO)
+    usuarios_logs = auditoria.usuarios_nos_logs(conn)
+
+    # Para linkar só demandas que ainda existem (as excluídas ficam sem link).
+    ids = {l['entidade_id'] for l in resultado['linhas'] if l['entidade'] == 'demanda' and l['entidade_id']}
+    existentes = set()
+    if ids:
+        marcas = ','.join('?' * len(ids))
+        existentes = {r[0] for r in conn.execute(
+            f'SELECT id FROM demandas WHERE id IN ({marcas})', list(ids)).fetchall()}
+    conn.close()
+
+    filtros_url = {k: v for k, v in ativos.items()}
+    return render_template(
+        'auditoria.html',
+        logs=resultado['linhas'], total=resultado['total'],
+        pagina=resultado['pagina'], total_paginas=resultado['paginas'],
+        filtros=ativos, filtros_url=filtros_url,
+        acoes=auditoria.ACOES, usuarios_logs=usuarios_logs,
+        demandas_existentes=existentes, tamanho=AUDITORIA_TAMANHO,
+    )
+
+
+@app.route('/auditoria/exportar')
+def exportar_auditoria():
+    """CSV com os logs que passam nos filtros da URL (para entregar à auditoria)."""
+    condicoes, params, ativos = auditoria.filtros_da_consulta(request.args)
+    conn = get_db()
+    linhas = auditoria.todos(conn, condicoes, params)
+
+    descricao_filtros = '; '.join(f'{k}={v}' for k, v in ativos.items()) or 'nenhum filtro (todos os logs)'
+    registrar_log(conn, 'auditoria.exportada',
+                  f'Logs de auditoria exportados em CSV ({len(linhas)} registro(s)). Filtros: {descricao_filtros}.',
+                  entidade='relatorio',
+                  detalhes={'registros': len(linhas), 'filtros': ativos})
+    conn.commit()
+    conn.close()
+
+    saida = io.StringIO()
+    escritor = csv.writer(saida, delimiter=';', lineterminator='\r\n')
+    agora = datetime.now()
+    escritor.writerow([NOME_EMPRESA])
+    escritor.writerow(['Log de Auditoria'])
+    escritor.writerow([f"Gerado em {agora.strftime('%d/%m/%Y às %H:%M')}"])
+    escritor.writerow([])
+    escritor.writerow(['Nº', 'Data/hora', 'Usuário', 'Ação', 'Registro', 'Descrição', 'IP', 'Detalhes (JSON)'])
+    for l in linhas:
+        registro = f"{l['entidade']} #{l['entidade_id']}" if l['entidade_id'] else (l['entidade'] or '')
+        escritor.writerow([
+            l['id'], formatar_data_hora(l['data_hora']), l['usuario_nome'], l['acao_rotulo'],
+            registro, l['descricao'], l['ip'] or '',
+            json.dumps(l['detalhes'], ensure_ascii=False) if l['detalhes'] else '',
+        ])
+    escritor.writerow([])
+    escritor.writerow([f'Gerado com: {descricao_filtros}'])
+
+    conteudo = ('\ufeff' + saida.getvalue()).encode('utf-8')
+    nome = f"auditoria-sgdi-{agora.strftime('%Y%m%d-%H%M%S')}.csv"
+    return send_file(io.BytesIO(conteudo), mimetype='text/csv', as_attachment=True, download_name=nome)
 
 
 if __name__ == '__main__':

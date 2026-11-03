@@ -57,9 +57,42 @@
         </select>
     </div>
 
-    <button type="submit" class="btn btn-primary">Filtrar</button>
-    <a href="/" class="btn btn-secondary">Limpar</a>
+    {# FIX: botões agora dentro de <div> com label vazio para alinhar com os outros filtros #}
+    <div class="filter-bar-botoes">
+        <label>&nbsp;</label>
+        <div class="filter-bar-botoes-linha">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="/" class="btn btn-secondary">Limpar</a>
+        </div>
+    </div>
 </form>
+
+{# SUGESTÃO: pills de filtros ativos — mostra quais filtros estão aplicados com botão × para remover #}
+{% set filtros_visíveis = [] %}
+{% if filtros_ativos.get('q') %}{% set _ = filtros_visíveis.append(('Busca', filtros_ativos['q'], 'q')) %}{% endif %}
+{% if filtros_ativos.get('de') %}{% set _ = filtros_visíveis.append(('De', filtros_ativos['de'], 'de')) %}{% endif %}
+{% if filtros_ativos.get('ate') %}{% set _ = filtros_visíveis.append(('Até', filtros_ativos['ate'], 'ate')) %}{% endif %}
+{% if filtros_ativos.get('prioridade') %}{% set _ = filtros_visíveis.append(('Prioridade', filtros_ativos['prioridade'], 'prioridade')) %}{% endif %}
+{% if filtros_ativos.get('status') %}{% set _ = filtros_visíveis.append(('Status', filtros_ativos['status'], 'status')) %}{% endif %}
+{% if filtros_ativos.get('responsavel_id') %}
+    {% for u in usuarios %}{% if u['id']|string == filtros_ativos['responsavel_id']|string %}
+        {% set _ = filtros_visíveis.append(('Responsável', u['nome'], 'responsavel_id')) %}
+    {% endif %}{% endfor %}
+{% endif %}
+{% if filtros_ativos.get('visao') == 'criticas_atrasadas' %}{% set _ = filtros_visíveis.append(('Visão', 'Críticas + atrasadas', 'visao')) %}{% endif %}
+
+{% if filtros_visíveis %}
+<div class="filtros-ativos">
+    <span class="filtros-ativos-label">Filtros ativos:</span>
+    {% for nome, valor, chave in filtros_visíveis %}
+    <a href="{{ url_for('index', **dict(filtros_ativos, **{chave: ''})) }}" class="pill-filtro" title="Remover filtro {{ nome }}">
+        <span class="pill-nome">{{ nome }}:</span>
+        <span class="pill-valor">{{ valor }}</span>
+        <span class="pill-remover">×</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
 
 <p class="nota">{{ total }} demanda{{ 's' if total != 1 else '' }} encontrada{{ 's' if total != 1 else '' }}. Página {{ pagina }} de {{ total_paginas }}.</p>
 
